@@ -1,0 +1,83 @@
+[insert_php]
+require_once( ABSPATH . '/wp-includes/Facebook/autoload.php' );
+
+use Facebook\Facebook;
+
+$fb = new \Facebook\Facebook([
+  'app_id' => '_____PUT_GRAPH_APP_ID_HERE_____',
+  'app_secret' => '_____PUT_GRAPH_API_SECRET_HERE_____',
+  'default_graph_version' => 'v2.7',
+  'default_access_token' => '_____PUT_GRAPH_ACCESS_TOKEN_HERE_____'
+]);
+
+// Array of page ids (can also be numerical ones)
+$fbids = array(
+'DonaldTrump',
+'hillaryclinton'
+);
+
+try {
+  // Get the \Facebook\GraphNodes\GraphUser object for the current user.
+  // If you provided a 'default_access_token', the '{access-token}' is optional.
+  $response = $fb->get('/?ids='.implode(',',$fbids).'&fields=id,name,picture,posts.limit(5){story,created_time,id,type,message,full_picture,link}&locale=de_DE');
+} catch(\Facebook\Exceptions\FacebookResponseException $e) {
+  // When Graph returns an error
+  echo 'Graph returned an error: ' . $e->getMessage();
+  exit;
+} catch(\Facebook\Exceptions\FacebookSDKException $e) {
+  // When validation fails or other local issues
+  echo 'Facebook SDK returned an error: ' . $e->getMessage();
+  exit;
+}
+
+$response->decodeBody();
+$fbresult = $response->getDecodedBody();
+
+$allposts = array();
+
+foreach ($fbresult as $page) {
+
+   foreach ($page['posts']['data'] as $posting) {
+      $allposts[] = array('name' => $page['name'], 'profile_picture' => $page['picture']['data']['url'], 'story' => $posting['story'], 'created_time' => $posting['created_time'], 'message' => $posting['message'],'picture' => $posting['full_picture'], 'type' => $posting['type'], 'link' => $posting['link']);
+   }
+}
+
+usort($allposts, function($a, $b)
+{
+   return -strcmp($a['created_time'], $b['created_time']);
+}
+);
+
+foreach ($allposts as $spost) {
+
+   echo '<div style=width:100%;padding: 0 10pt 0 0; float: left>';
+   echo '<div style=width:100%><div style=width:60px;float:left><img src='.$spost['profile_picture'].' alt=Bild/></div><div style=width:80%;float:left>' . $spost['name'] . ':</div></div><br />';
+
+   switch ($spost['type']) {
+      case 'status':
+      case 'photo':
+      case 'link':
+      case 'video':
+      case 'event':
+         echo '<div style=width:80%;float:left;font-size:small>';
+         echo $spost['story'] . '<br/>';
+         echo '</div>';
+         echo '<div style=width:100%;float:left>';
+         echo $spost['message'] . '<br/>';
+         echo '</div>';
+
+         if (strcmp($spost['picture'],'')!=0) {
+            echo '<div style=width:100%;float:left>';
+            echo '<a href='.$spost['link'].'><img src='.$spost['picture'].' width=300 /><br/>Open link</a><br/>';
+            echo '</div>';
+         } else {
+            echo '<div style=width:100%;float:left>';
+            echo '<a href='.$spost['link'].'>Open link</a><br/>';
+            echo '</div>';
+         }
+         break;
+   }
+   echo '</div><br /><br />';
+   echo '<div style=width:100%;float:left><hr/></div>';
+}
+[/insert_php]
